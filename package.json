@@ -1,0 +1,14 @@
+{
+  "name": "hubot-dingtalk",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dingtalk.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "ineo6",
+  "license": "MIT",
+  "peerDependencies": {
+    "hubot": "^3.3.2"
+  }
+}

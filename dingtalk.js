@@ -9,8 +9,10 @@ const User = require.main.require('hubot/src/user')
 const { Text } = require("./src/template");
 
 class Dingtalk extends Adapter {
-  constructor(robot) {
+  constructor(robot, options) {
     super(robot);
+
+    this.token = options.token;
 
     // 钉钉发送消息地址，20分钟有效期
     // todo cache?
@@ -27,7 +29,7 @@ class Dingtalk extends Adapter {
           const result = JSON.parse(body);
 
           if (result.errmsg === 0) {
-            this.robot.logger.info("request success")
+            //this.robot.logger.info("request success")
           } else {
             this.robot.logger.error("request failed：" + result.errmsg, resp)
           }
@@ -73,7 +75,6 @@ class Dingtalk extends Adapter {
 
   listen() {
     this.robot.router.post('/hubot/dingtalk/message/', (request, response) => {
-      const room = request.params.room
       let data = {};
 
       if (request.body.payload) {
@@ -83,14 +84,20 @@ class Dingtalk extends Adapter {
         data = request.body
       }
 
-      this.robot.logger.info(data);
+      const requestToken = request.get('token');
 
-      this.sessionWebhook = data.sessionWebhook;
-      this.receiveMessageFromUrl(data.text.content, data.createAt, data.senderId, data.senderNick)
+      if (requestToken === this.token) {
+        this.robot.logger.debug(`dingtalk receive data ${JSON.stringify(data)}`);
 
-      // call scripts and reply?
+        this.sessionWebhook = data.sessionWebhook;
+        this.receiveMessageFromUrl(data.text.content, data.createAt, data.senderId, data.senderNick)
 
-      response.send('OK');
+        response.send(JSON.stringify({
+          "msgtype": "empty",
+        }));
+      } else {
+        response.send("who are you!!!");
+      }
     });
   }
 
@@ -111,12 +118,19 @@ class Dingtalk extends Adapter {
   }
 
   run() {
-    this.robot.logger.info("Run")
+    this.robot.logger.info("Run");
 
-    this.listen();
+    if (this.token) {
+      this.listen();
+    } else {
+      this.robot.logger.error("No token provided to dingtalk!");
+    }
 
     this.emit("connected")
   }
 }
 
-exports.use = robot => new Dingtalk(robot)
+// 钉钉自定义机器人outgoing回调token
+const token = process.env.HUBOT_DINGTALK_TOKEN;
+
+exports.use = robot => new Dingtalk(robot, { token })

@@ -154,7 +154,7 @@ class Dingtalk extends Adapter {
       return false;
     }
 
-    if (!this.token || !this.secret) {
+    if (!this.token && !this.secret) {
       this.robot.logger.error("No token or secret is provided to dingtalk!");
     } else {
       this.listen();

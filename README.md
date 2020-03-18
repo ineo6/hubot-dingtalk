@@ -15,7 +15,8 @@
 - `HUBOT_DINGTALK_TOKEN` (认证类型为token时)
 - `HUBOT_DINGTALK_SECRET` (认证类型为sign时)
 - `HUBOT_DINGTALK_MODE` (会话类型，1:全部，2:单聊，3:群聊)
-- `HUBOT_DINGTALK_BLACKLIST` (会话黑名单，格式为`cidyyyy==,cidxxxx=`)
+- `HUBOT_DINGTALK_BLACKLIST` (会话黑名单，格式为`cidyyyy==,cidxxxx=`，优先极高)
+- `HUBOT_DINGTALK_WHITELIST` (会话白名单，格式为`cidyyyy==,cidxxxx=`)
 
 ## Adapter 配置
 
@@ -56,12 +57,15 @@
 
 #### 会话控制
 
-目前支持基础的会话控制，包含会话类型（单聊、群聊），会话黑名单（基于`conversationId`）
+目前支持基础的会话控制，包含会话类型（单聊、群聊），会话黑白名单（基于`conversationId`）
 
 - `HUBOT_DINGTALK_MODE=1`
 - `HUBOT_DINGTALK_BLACKLIST=cidyyyy==,cidxxxx=`
+- `HUBOT_DINGTALK_WHITELIST=cidyyyy==,cidxxxx=`
 
-该方案目前是简单实现，`conversationId`的获取还没想到比较好的方式，因为时间问题目前会在控制台中输出，需要的话尅自取。
+会优先使用黑名单，关于要使用哪种方式可以自由选取。
+
+该方案目前是简单实现，`conversationId`的获取还没想到比较好的方式，因为时间问题，临时获取方式是在控制台中输出。
 
 ## Todo
 

@@ -28,7 +28,8 @@ class Dingtalk extends Adapter {
     this.secret = options.secret;
     this.authType = options.authType || authDict[0];
     this.mode = options.mode ? options.mode * 1 : dict.MODE.Both;
-    this.blackList = options.blackList || "";
+    this.blackList = options.blackList ? options.blackList.split(",") : [];
+    this.whiteList = options.whiteList ? options.whiteList.split(",") : [];
 
     // 钉钉发送消息地址，20分钟有效期
     // todo cache?
@@ -129,11 +130,23 @@ class Dingtalk extends Adapter {
     const { conversationId, } = messageData;
 
     // 判断会话权限
-    const blackArr = this.blackList.split(",");
 
-    if (blackArr.indexOf(conversationId) >= 0) {
+    // 优先使用黑名单，为空时再使用白名单
+    if (this.blackList && this.blackList.length) {
+      if (this.blackList.indexOf(conversationId) >= 0) {
+        this.robot.logger.info(
+          `${conversationId} is blocked`
+        );
+
+        return true;
+      }
+    } else if (this.whiteList && this.whiteList.length) {
+      if (this.whiteList.indexOf(conversationId) >= 0) {
+        return false;
+      }
+
       this.robot.logger.info(
-        `Not joining ${conversationId} because it is blacklisted`
+        `${conversationId} is blocked`
       );
 
       return true;
@@ -182,7 +195,7 @@ class Dingtalk extends Adapter {
 
         if (isMessageChannelDisabled) {
           const bannedText = new Text();
-          bannedText.setContent("机器人尚未对该频道启用!");
+          bannedText.setContent("机器人尚未对该会话启用!");
 
           if (data.senderId && data.conversationType === "2") {
             bannedText.atId(data.senderId);
@@ -259,5 +272,6 @@ const secret = process.env.HUBOT_DINGTALK_SECRET;
 const authType = process.env.HUBOT_DINGTALK_AUTH_TYPE;
 const mode = process.env.HUBOT_DINGTALK_MODE;
 const blackList = process.env.HUBOT_DINGTALK_BLACKLIST;
+const whiteList = process.env.HUBOT_DINGTALK_WHITELIST;
 
-exports.use = robot => new Dingtalk(robot, { token, secret, authType, mode, blackList });
+exports.use = robot => new Dingtalk(robot, { token, secret, authType, mode, blackList, whiteList });

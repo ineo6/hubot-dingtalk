@@ -71,3 +71,9 @@
 
 - 接入主动发消息webhook
 - 优化消息显示
+
+## 如果喜欢的话
+
+如果喜欢的话，欢迎请我喝一杯咖啡。`star`,`follow`也是对我工作的肯定和鼓励。
+
+<img src="https://github.com/ineo6/hubot-dingtalk/blob/master/wechat-like.jpeg" alt="wechat-like" width=256 height=256 />

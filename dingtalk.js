@@ -8,6 +8,18 @@ const User = require.main.require("hubot/src/user");
 
 const { Text } = require("./src/template");
 
+const authDict = ["token", "sign"];
+
+const dict = {
+  MODE: {
+    Both: 1,
+    Single: 2,
+    Group: 3,
+  }
+};
+
+const modeDict = [dict.MODE.Both, dict.MODE.Single, dict.MODE.Group];
+
 class Dingtalk extends Adapter {
   constructor(robot, options) {
     super(robot);
@@ -15,6 +27,8 @@ class Dingtalk extends Adapter {
     this.token = options.token;
     this.secret = options.secret;
     this.authType = options.authType || authDict[0];
+    this.mode = options.mode ? options.mode * 1 : dict.MODE.Both;
+    this.blackList = options.blackList || "";
 
     // 钉钉发送消息地址，20分钟有效期
     // todo cache?
@@ -29,16 +43,16 @@ class Dingtalk extends Adapter {
         .http(this.sessionWebhook)
         .header("Content-Type", "application/json")
         .post(JSON.stringify(data.get()))((err, resp, body) => {
-        const result = JSON.parse(body);
+          const result = JSON.parse(body);
 
-        if (result.errmsg === 0) {
-          //this.robot.logger.info("request success")
-        } else {
-          this.robot.logger.error("request failed：" + result.errmsg, resp);
-        }
+          if (result.errmsg === 'ok') {
+            //this.robot.logger.info("request success")
+          } else {
+            this.robot.logger.error("request failed：" + result.errmsg);
+          }
 
-        cb && cb();
-      });
+          cb && cb();
+        });
     } else {
       this.robot.logger.error("sessionWebhook is null");
     }
@@ -96,6 +110,38 @@ class Dingtalk extends Adapter {
     }
   }
 
+  isRobotSupportMode(messageData) {
+    const { conversationType } = messageData;
+
+    // 判断消息模式
+    if (this.mode === 1) {
+      return conversationType === "1" || conversationType === "2"
+    } else if (this.mode === 2) {
+      return conversationType === "1"
+    } else if (this.mode === 3) {
+      return conversationType === "2"
+    }
+
+    return false;
+  }
+
+  isMessageChannelDisabled(messageData) {
+    const { conversationId, } = messageData;
+
+    // 判断会话权限
+    const blackArr = this.blackList.split(",");
+
+    if (blackArr.indexOf(conversationId) >= 0) {
+      this.robot.logger.info(
+        `Not joining ${conversationId} because it is blacklisted`
+      );
+
+      return true;
+    }
+
+    return false;
+  }
+
   listen() {
     this.robot.router.post("/hubot/dingtalk/message/", (request, response) => {
       let data = {};
@@ -107,9 +153,47 @@ class Dingtalk extends Adapter {
       }
 
       if (this.referrerCheck(request)) {
-        this.robot.logger.debug(
-          `dingtalk receive data ${JSON.stringify(data)}`
+        this.robot.logger.info(
+          `dingtalk receive data conversationId: ${data.conversationId}`
         );
+
+        this.robot.logger.debug(
+          `${JSON.stringify(data)}`
+        );
+
+        const isRobotSupportMode = this.isRobotSupportMode(data);
+
+        if (!isRobotSupportMode) {
+          const bannedText = new Text();
+          bannedText.setContent(`机器人不支持${data.conversationType === "1" ? '单聊' : '群聊'}!`);
+
+          if (data.senderId && data.conversationType === "2") {
+            bannedText.atId(data.senderId);
+          }
+
+          response.send(
+            JSON.stringify(bannedText.get())
+          );
+
+          return;
+        }
+
+        const isMessageChannelDisabled = this.isMessageChannelDisabled(data);
+
+        if (isMessageChannelDisabled) {
+          const bannedText = new Text();
+          bannedText.setContent("机器人尚未对该频道启用!");
+
+          if (data.senderId && data.conversationType === "2") {
+            bannedText.atId(data.senderId);
+          }
+
+          response.send(
+            JSON.stringify(bannedText.get())
+          );
+
+          return;
+        }
 
         this.sessionWebhook = data.sessionWebhook;
         this.receiveMessageFromUrl(
@@ -154,6 +238,11 @@ class Dingtalk extends Adapter {
       return false;
     }
 
+    if (modeDict.indexOf(this.mode) === -1) {
+      this.robot.logger.error("Valid mode is one of 1,2,3!");
+      return false;
+    }
+
     if (!this.token && !this.secret) {
       this.robot.logger.error("No token or secret is provided to dingtalk!");
     } else {
@@ -164,11 +253,11 @@ class Dingtalk extends Adapter {
   }
 }
 
-const authDict = ["token", "sign"];
-
 // 钉钉自定义机器人签名
 const token = process.env.HUBOT_DINGTALK_TOKEN;
 const secret = process.env.HUBOT_DINGTALK_SECRET;
 const authType = process.env.HUBOT_DINGTALK_AUTH_TYPE;
+const mode = process.env.HUBOT_DINGTALK_MODE;
+const blackList = process.env.HUBOT_DINGTALK_BLACKLIST;
 
-exports.use = robot => new Dingtalk(robot, { token, secret, authType });
+exports.use = robot => new Dingtalk(robot, { token, secret, authType, mode, blackList });

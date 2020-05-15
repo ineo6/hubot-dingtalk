@@ -1,0 +1,10 @@
+[
+  {
+    "room": "room",
+    "env": "HUBOT_DINGTALK_ACCESS_TOKEN"
+  },
+  {
+    "room": "room2",
+    "env": "HUBOT_DINGTALK_ACCESS_TOKEN2"
+  }
+]

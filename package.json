@@ -4,7 +4,8 @@
   "description": "",
   "main": "dingtalk.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest -i --forceExit --detectOpenHandles",
+    "test:coverage": "jest -i --coverage --forceExit --detectOpenHandles"
   },
   "keywords": [
     "hubot",
@@ -16,5 +17,31 @@
   "license": "MIT",
   "peerDependencies": {
     "hubot": "^3.3.2"
+  },
+  "dependencies": {
+    "dingtalk-robot-sdk": "^1.0.1"
+  },
+  "devDependencies": {
+    "express": "^4.17.1",
+    "got": "^11.1.3",
+    "jest": "^26.0.1",
+    "nock": "^12.0.3",
+    "scoped-http-client": "^0.11.0"
+  },
+  "jest": {
+    "testPathIgnorePatterns": [
+      "/helpers/",
+      "/node_modules/"
+    ],
+    "coveragePathIgnorePatterns": [
+      "/node_modules/"
+    ],
+    "coverageReporters": [
+      "lcov",
+      "text",
+      "clover"
+    ],
+    "coverageDirectory": "./test-results",
+    "collectCoverage": true
   }
 }

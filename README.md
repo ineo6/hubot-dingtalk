@@ -67,13 +67,50 @@
 
 该方案目前是简单实现，`conversationId`的获取还没想到比较好的方式，因为时间问题，临时获取方式是在控制台中输出。
 
+## 配置Webhook主动发送
+
+在机器人目录`conf`目录（没有请创建），添加`dingtalk-room.json`文件。
+
+同一个机器人在不同群的`access_token`是不一样的，所以要主动发送消息到群是要指定`access_token`。
+
+这里通过维护别名的方式来实现发送到指定群，`room`是自定义的名称，可以设置成群聊名称一样，`env`是`access_token`的环境变量名称。
+
+```json
+[
+  {
+    "room": "room1",
+    "env": "HUBOT_DINGTALK_ACCESS_TOKEN"
+  },
+  {
+    "room": "room2",
+    "env": "HUBOT_DINGTALK_ACCESS_TOKEN2"
+  }
+]
+```
+
+### 如何发送？
+
+调用`robot.messageRoom`时，传入你想要发送的群聊别名即可。
+
+```coffeescript
+module.exports = (robot) ->
+  robot.on "dingtalk", (params) ->
+    robot.messageRoom 'room1', "response"
+```
+
 ## Todo
 
-- 接入主动发消息webhook
-- 优化消息显示
+- [x] 接入主动发消息webhook
+- [ ] 优化消息显示
+
+## 反馈
+
+| Github Issue | 钉钉群  |
+| --- | --- |
+| [issues](https://github.com/ineo6/hubot-dingtalk/issues) | <img src="https://cdn.jsdelivr.net/gh/ineo6/hubot-dingtalk/dingtalk-group.JPG" width="260" />  |
 
 ## 如果喜欢的话
 
 如果喜欢的话，欢迎请我喝一杯咖啡。`star`,`follow`也是对我工作的肯定和鼓励。
 
-<img src="https://github.com/ineo6/hubot-dingtalk/blob/master/wechat-like.jpeg" alt="wechat-like" width=256 height=256 />
+<img src="https://cdn.jsdelivr.net/gh/ineo6/hubot-dingtalk/wechat-like.jpeg" alt="wechat-like" width=256 height=256 />

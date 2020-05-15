@@ -6,7 +6,11 @@ const Adapter = require.main.require("hubot/src/adapter");
 const { TextMessage } = require.main.require("hubot/src/message");
 const User = require.main.require("hubot/src/user");
 
-const { Text } = require("./src/template");
+const Robot = require("dingtalk-robot-sdk")
+const path = require('path')
+const fs = require('fs')
+
+const Text = Robot.Text;
 
 const authDict = ["token", "sign"];
 
@@ -34,28 +38,54 @@ class Dingtalk extends Adapter {
     // 钉钉发送消息地址，20分钟有效期
     // todo cache?
     this.sessionWebhook = null;
+    this.webhook = null;
 
     this.robot.logger.info("Constructor");
   }
 
-  request(data, cb) {
-    if (this.sessionWebhook) {
+  getWebHookUrl(accessToken) {
+    return new Robot({ accessToken: accessToken, secret: this.secret }).getWebHook();
+  }
+
+  request(data, envelope, cb) {
+    let webHookUrl = this.sessionWebhook;
+
+    // 只有指定room时使用webhook，outgoing返回消息采用sessionWebhook
+    if (envelope.room) {
+      const accessToken = this.robot.brain.get(envelope.room);
+
+      if (accessToken) {
+        webHookUrl = this.getWebHookUrl(accessToken);
+      } else {
+        this.robot.logger.error(`dingtalk send to room ${envelope.room} failed: accessToken not found`);
+        return;
+      }
+    }
+
+    // todo 直接调用robot.send时缺少room，可能会使用sessionWebhook导致错误发送
+    if (webHookUrl) {
       this.robot
-        .http(this.sessionWebhook)
+        .http(webHookUrl)
         .header("Content-Type", "application/json")
         .post(JSON.stringify(data.get()))((err, resp, body) => {
-          const result = JSON.parse(body);
+          if (body) {
+            try {
+              const result = JSON.parse(body);
 
-          if (result.errmsg === 'ok') {
-            //this.robot.logger.info("request success")
+              if (result.errmsg !== 'ok') {
+                this.robot.logger.error("response failed：" + result.errmsg);
+              }
+            } catch (e) {
+              this.robot.logger.error("response failed：" + e.errmsg);
+            }
           } else {
-            this.robot.logger.error("request failed：" + result.errmsg);
+            this.robot.logger.error("request failed：" + err);
           }
 
           cb && cb();
         });
     } else {
-      this.robot.logger.error("sessionWebhook is null");
+      this.robot.logger.error("missing webhook");
     }
   }
 
@@ -76,9 +106,9 @@ class Dingtalk extends Adapter {
       text.atId(envelope.user.id);
     }
 
-    this.robot.logger.debug(`dingtalk sending message: ${text}`);
+    this.robot.logger.debug(`dingtalk send to ${envelope.room || ""}  message: ${text}`);
 
-    this.request(text, () => {
+    this.request(text, envelope, () => {
       this.send.apply(this, [envelope].concat(strings));
     });
   }
@@ -156,6 +186,10 @@ class Dingtalk extends Adapter {
   }
 
   listen() {
+    this.robot.router.get("/hubot/dingtalk/message/", (request, response) => {
+      response.send("<h1>Hubot Dingtalk</h1><p>请使用POST方式请求！</p>");
+    })
+
     this.robot.router.post("/hubot/dingtalk/message/", (request, response) => {
       let data = {};
 
@@ -209,6 +243,7 @@ class Dingtalk extends Adapter {
         }
 
         this.sessionWebhook = data.sessionWebhook;
+
         this.receiveMessageFromUrl(
           data.text.content,
           data.createAt,
@@ -234,6 +269,25 @@ class Dingtalk extends Adapter {
     }
 
     return message;
+  }
+
+  read(base) {
+    const configFilePath = path.resolve(base || ".", "conf", "dingtalk-room.json");
+
+    if (fs.existsSync(configFilePath)) {
+      try {
+        const data = fs.readFileSync(configFilePath);
+
+        return JSON.parse(data);
+      } catch (e) {
+        this.robot.logger.error("Read file: " + configFilePath + " failed");
+        this.robot.logger.error(e.message);
+      }
+    } else {
+      this.robot.logger.info("Definition file not found:" + configFilePath);
+    }
+
+    return [];
   }
 
   receiveMessageFromUrl(msg, msgId, senderId, username) {
@@ -262,6 +316,15 @@ class Dingtalk extends Adapter {
       this.listen();
     }
 
+    // start incoming webhook
+    const conf = this.read();
+
+    conf.forEach((config) => {
+      if (config.room && config.env && process.env[config.env]) {
+        this.robot.brain.set(config.room, process.env[config.env])
+      }
+    })
+
     this.emit("connected");
   }
 }
@@ -274,4 +337,13 @@ const mode = process.env.HUBOT_DINGTALK_MODE;
 const blackList = process.env.HUBOT_DINGTALK_BLACKLIST;
 const whiteList = process.env.HUBOT_DINGTALK_WHITELIST;
 
-exports.use = robot => new Dingtalk(robot, { token, secret, authType, mode, blackList, whiteList });
+exports.use = robot => {
+  return new Dingtalk(robot, {
+    token,
+    secret,
+    authType,
+    mode,
+    blackList,
+    whiteList
+  })
+};

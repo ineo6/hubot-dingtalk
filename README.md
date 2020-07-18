@@ -94,9 +94,11 @@
 
 ```coffeescript
 module.exports = (robot) ->
-  robot.on "dingtalk", (params) ->
+  robot.hear "dingtalk", (params) ->
     robot.messageRoom 'room1', "response"
 ```
+
+这段代码使用了`coffeescript`，所以建立的文件扩展名必须是`.coffee`，当然你也可以转换为`js`语法，然后放到`.js`的文件里。
 
 ## Todo
 
